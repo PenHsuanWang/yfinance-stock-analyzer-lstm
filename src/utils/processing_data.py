@@ -45,7 +45,8 @@ class PytorchDataProcessor(BaseDataProcessor):
         self._testing_tensor = None
         self._testing_target_tensor = None
 
-        self._scaler = MinMaxScaler()
+        self._scaler_training = MinMaxScaler()
+        self._scaler_testing = MinMaxScaler()
 
     def _extract_training_data(self) -> None:
         self._target_series = self._input_data[self._target_column].values
@@ -53,7 +54,11 @@ class PytorchDataProcessor(BaseDataProcessor):
             raise ValueError(f"Please check the column {self._target_column} exist in the input data!")
 
     def _scaling_by_column(self):
-        self._target_series = self._scaler.fit_transform(self._target_series.reshape(-1, 1))
+        # self._target_series = self._scaler.fit_transform(self._target_series.reshape(-1, 1))
+        self._scaler_training.fit(self._training_series.reshape(-1, 1))
+        self._scaler_testing.fit_transform(self._testing_series.reshape(-1, 1))
+        self._training_series = self._scaler_training.transform(self._training_series.reshape(-1, 1))
+        self._testing_series = self._scaler_testing.transform(self._testing_series.reshape(-1, 1))
 
     def _splitting(self):
         self._training_series = self._target_series[:int(self._training_data_ratio * len(self._target_series))]
@@ -82,8 +87,9 @@ class PytorchDataProcessor(BaseDataProcessor):
 
     def process_data(self) -> None:
         self._extract_training_data()
-        self._scaling_by_column()
+        # self._scaling_by_column()
         self._splitting()
+        self._scaling_by_column()
         self._preprocessing()
 
     def get_training_set(self) -> pd.DataFrame:
@@ -98,16 +104,16 @@ class PytorchDataProcessor(BaseDataProcessor):
     def get_tensors_to_test_model(self) -> tuple[torch.Tensor, torch.Tensor]:
         return self._testing_tensor, self._testing_target_tensor
 
-    def inverse_scaler(self, data: np.ndarray) -> np.ndarray:
-        return self._scaler.inverse_transform(data.reshape(-1, 1))
+    def inverse_testing_scaler(self, data: np.ndarray) -> np.ndarray:
+        return self._scaler_testing.inverse_transform(data.reshape(-1, 1))
 
     def _sliding_window_mask_on_training_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
         x_train = []
         y_train = []
 
         for i in range(self._window_size, len(self._training_series)):
-            x_train.append(self._target_series[i - self._window_size:i])
-            y_train.append(self._target_series[i])
+            x_train.append(self._training_series[i - self._window_size:i])
+            y_train.append(self._training_series[i])
 
         return x_train, y_train
 
@@ -116,7 +122,7 @@ class PytorchDataProcessor(BaseDataProcessor):
         y_test = []
 
         for i in range(self._window_size, len(self._testing_series)):
-            x_test.append(self._target_series[i - self._window_size:i])
-            y_test.append(self._target_series[i])
+            x_test.append(self._testing_series[i - self._window_size:i])
+            y_test.append(self._testing_series[i])
 
         return x_test, y_test
