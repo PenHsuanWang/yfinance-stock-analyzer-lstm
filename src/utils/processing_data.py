@@ -79,6 +79,9 @@ class PytorchDataProcessor(BaseDataProcessor):
         x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
         x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
+        y_train = np.reshape(y_train, (y_train.shape[0], y_train.shape[1]))
+        y_test = np.reshape(y_test, (y_test.shape[0], y_test.shape[1]))
+
         self._training_tensor = torch.from_numpy(x_train).float()
         self._training_target_tensor = torch.from_numpy(y_train).float()
 
