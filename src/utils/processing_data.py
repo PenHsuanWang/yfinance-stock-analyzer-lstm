@@ -59,22 +59,25 @@ class PytorchDataProcessor(BaseDataProcessor):
 
         self._scaler_by_column = {}
 
-    def _extract_training_data(self) -> None:
+    def _extract_training_data_and_scale(self) -> None:
 
-        if len(self._extract_column) == 1:
-            self._extract_data = self._input_df[self._extract_column].values
+        # if len(self._extract_column) == 1:
+        #     self._extract_data = self._input_df[self._extract_column].values
+        #     if self._extract_data is None:
+        #         raise ValueError(f"Please check the column {self._extract_column} exist in the input data!")
+        # else:
+        if self._extract_column is None:
+            raise ValueError(f"Please check the column {self._extract_column} exist in the input data!")
+
+        for i_column in self._extract_column:
+            extract_column_series = self._input_df[i_column].values
+            extract_column_series_after_scaling, scaler = self.scaling_one_d_array(extract_column_series)
+            extract_column_series_after_scaling = np.expand_dims(extract_column_series_after_scaling.reshape(-1), axis=1)
+            self._scaler_by_column[i_column] = scaler
             if self._extract_data is None:
-                raise ValueError(f"Please check the column {self._extract_column} exist in the input data!")
-        else:
-            for i_column in self._extract_column:
-                extract_column_series = self._input_df[i_column].values
-                extract_column_series_after_scaling, scaler = self.scaling_one_d_array(extract_column_series)
-                extract_column_series_after_scaling = np.expand_dims(extract_column_series_after_scaling.reshape(-1), axis=1)
-                self._scaler_by_column[i_column] = scaler
-                if self._extract_data is None:
-                    self._extract_data = extract_column_series_after_scaling
-                else:
-                    self._extract_data = np.concatenate((self._extract_data, extract_column_series_after_scaling), axis=1)
+                self._extract_data = extract_column_series_after_scaling
+            else:
+                self._extract_data = np.concatenate((self._extract_data, extract_column_series_after_scaling), axis=1)
 
     def _splitting(self):
         self._training_array = self._extract_data[
@@ -100,8 +103,11 @@ class PytorchDataProcessor(BaseDataProcessor):
         self._testing_array = self._scaler_testing.transform(self._testing_array)
 
     def _preprocessing(self):
-        x_train, y_train = self._sliding_window_mask_on_training_data()
-        x_test, y_test = self._sliding_window_mask_on_testing_data()
+        # x_train, y_train = self._sliding_window_mask_on_training_data()
+        # x_test, y_test = self._sliding_window_mask_on_testing_data()
+
+        x_train, y_train = self._sliding_window_mask(self._training_array)
+        x_test, y_test = self._sliding_window_mask(self._testing_array)
 
         # Convert the x_train and y_train to numpy arrays
         x_train, y_train = np.array(x_train), np.array(y_train)
@@ -120,7 +126,7 @@ class PytorchDataProcessor(BaseDataProcessor):
         self._testing_target_tensor = torch.from_numpy(y_test).float()
 
     def process_data(self) -> None:
-        self._extract_training_data()
+        self._extract_training_data_and_scale()
         self._splitting()
         # self._scaling_array()
         self._preprocessing()
@@ -141,29 +147,42 @@ class PytorchDataProcessor(BaseDataProcessor):
         return self._scaler_by_column[scaler_by_column_name].inverse_transform(data)
         # return self._scaler_testing.inverse_transform(data.reshape(-1, 1))
 
-    def _sliding_window_mask_on_training_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
+    def _sliding_window_mask(self, input_array: np.ndarray) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
         """
-        Sliding window mask on training data, return training data and target data,
-        the size of training data and the target data can be customized by window_size.
+        Sliding window mask on provided data, return training data and target data,
         """
+        x = []
+        y = []
 
-        x_train = []
-        y_train = []
+        for i in range(self._training_window_size, len(input_array) - self._target_window_size + 1):
+            x.append(input_array[i - self._training_window_size:i])
+            y.append(input_array[i:i + self._target_window_size, 0])
 
-        for i in range(self._training_window_size, len(self._training_array) - self._target_window_size + 1):
-            x_train.append(self._training_array[i - self._training_window_size:i])
-            y_train.append(self._training_array[i:i + self._target_window_size, 0])
+        return x, y
 
-        return x_train, y_train
-
-    def _sliding_window_mask_on_testing_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
-        x_test = []
-        y_test = []
-
-        for i in range(self._training_window_size, len(self._testing_array) - self._target_window_size + 1):
-            x_test.append(self._testing_array[i - self._training_window_size:i])
-            y_test.append(self._testing_array[i:i + self._target_window_size, 0])
-
-        print(self._training_window_size, len(self._testing_array) - self._target_window_size + 1)
-
-        return x_test, y_test
+    # def _sliding_window_mask_on_training_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
+    #     """
+    #     Sliding window mask on training data, return training data and target data,
+    #     the size of training data and the target data can be customized by window_size.
+    #     """
+    #
+    #     x_train = []
+    #     y_train = []
+    #
+    #     for i in range(self._training_window_size, len(self._training_array) - self._target_window_size + 1):
+    #         x_train.append(self._training_array[i - self._training_window_size:i])
+    #         y_train.append(self._training_array[i:i + self._target_window_size, 0])
+    #
+    #     return x_train, y_train
+    #
+    # def _sliding_window_mask_on_testing_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
+    #     x_test = []
+    #     y_test = []
+    #
+    #     for i in range(self._training_window_size, len(self._testing_array) - self._target_window_size + 1):
+    #         x_test.append(self._testing_array[i - self._training_window_size:i])
+    #         y_test.append(self._testing_array[i:i + self._target_window_size, 0])
+    #
+    #     print(self._training_window_size, len(self._testing_array) - self._target_window_size + 1)
+    #
+    #     return x_test, y_test
