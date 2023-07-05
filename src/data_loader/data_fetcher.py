@@ -147,9 +147,3 @@ if __name__ == '__main__':
     # create YahooFinanceDataLoader object
     yf_data_loader = YahooFinanceDataLoader(start_date='2015-01-01', end_date='2020-01-01')
     yf_data_loader.get_company_data(company_list=tech_list)
-
-    company_list = [AAPL, GOOG, MSFT, AMZN]
-    company_name = ["APPLE", "GOOGLE", "MICROSOFT", "AMAZON"]
-
-    print(AAPL.head())
-    print(AAPL.describe())

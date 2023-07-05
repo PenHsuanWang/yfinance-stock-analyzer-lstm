@@ -17,10 +17,8 @@ def sample_input_data():
 
 def test_process_data(sample_input_data):
     # Initialize the PytorchDataProcessor
-    processor = PytorchDataProcessor(input_data=sample_input_data,
-                                     target_column='Value',
-                                     training_data_ratio=0.8,
-                                     window_size=2)
+    processor = PytorchDataProcessor(input_data=sample_input_data, extract_column='Value', training_data_ratio=0.8,
+                                     training_window_size=2)
 
     # Perform data processing
     processor.process_data()
@@ -44,10 +42,8 @@ def test_process_data(sample_input_data):
 
 def test_inverse_scaler(sample_input_data):
     # Initialize the PytorchDataProcessor
-    processor = PytorchDataProcessor(input_data=sample_input_data,
-                                     target_column='Value',
-                                     training_data_ratio=0.8,
-                                     window_size=2)
+    processor = PytorchDataProcessor(input_data=sample_input_data, extract_column='Value', training_data_ratio=0.8,
+                                     training_window_size=2)
 
     # Perform data processing
     processor.process_data()
