@@ -147,7 +147,7 @@ class PytorchDataProcessor(BaseDataProcessor):
         return self._scaler_by_column[scaler_by_column_name].inverse_transform(data)
         # return self._scaler_testing.inverse_transform(data.reshape(-1, 1))
 
-    def _sliding_window_mask(self, input_array: np.ndarray) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
+    def _sliding_window_mask(self, input_array: np.ndarray) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         Sliding window mask on provided data, return training data and target data,
         """
