@@ -36,7 +36,7 @@ class YahooFinanceDataLoader:
         return list_of_data
 
     @staticmethod
-    def get_company_data_and_save_to_csv(company_list: list, path_to_save_data: str, start_date, end_date) -> None:
+    def get_company_data_and_save_to_csv(company_list: list, start_date: str, end_date: str, path_to_save_data: str) -> None:
         """
         fetching the data from yahoo finance and save to csv file
         """
