@@ -224,3 +224,48 @@ for i in range(test_tensor.shape[0]-100):
     # close_price_series_test_list = close_price_series_test_list[move_count:]
     # break
 # %%
+
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from datetime import timedelta
+import os
+
+fig, ax = plt.subplots(figsize=(16, 9))
+ax.grid()
+ax.set_title("AAPL Stock Price Prediction Animation")
+ax.set_xlabel("Date")
+ax.set_ylabel("Close Price")
+
+historical_line, = ax.plot([], [], label='Historical Data', color='blue')
+true_line, = ax.plot([], [], label='True Future Data', color='red')
+prediction_line, = ax.plot([], [], label='Predicted Data', color='orange')
+ax.legend()
+
+def update(frame):
+    if frame >= len(test_tensor):
+        return
+    historical_x = [testing_start_date - timedelta(days=90) + timedelta(days=frame + i) for i in range(90)]
+    future_x = [testing_start_date + timedelta(days=frame + i) for i in range(10)]
+    historical_data = test_tensor[frame, :].tolist()
+    true_future_data = test_target[frame, :].tolist()
+    predicted_future_data = prediction_output[frame, :].tolist()
+
+    true_future_data = [historical_data[-1]] + true_future_data
+    predicted_future_data = [historical_data[-1]] + predicted_future_data
+    future_x = [historical_x[-1]] + future_x
+
+    historical_line.set_data(historical_x, historical_data)
+    true_line.set_data(future_x, true_future_data)
+    prediction_line.set_data(future_x, predicted_future_data)
+    
+    ax.set_xlim(historical_x[0], future_x[-1])
+    all_data = historical_data + true_future_data + predicted_future_data
+    ax.set_ylim(min(all_data) * 0.95, max(all_data) * 1.05)
+
+output_dir = "./output_animation"
+os.makedirs(output_dir, exist_ok=True)
+
+ani = FuncAnimation(fig, update, frames=len(test_tensor)-100, interval=200, repeat=False)
+ani.save(f"{output_dir}/stock_price_prediction_animation.mp4", writer="ffmpeg", fps=10)
+plt.show()
+# %%
