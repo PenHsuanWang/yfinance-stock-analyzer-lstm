@@ -41,11 +41,6 @@ if DATA_PATH is None:
 TRAINING_WINDOW_SIZE = 90
 TARGET_WINDOW_SIZE = 10
 
-# Optional: use YahooFinanceDataLoader if desired
-# yf_data_loader = YahooFinanceDataLoader(start_date='2000-01-01', end_date='2023-06-01')
-# yf_data_loader.get_compamy_data_and_save_to_csv(company_list=companies_list, path_to_save_data=DATA_PATH)
-# list_of_data = yf_data_loader.get_company_data(company_list=companies_list)
-
 # Using CSV file to get data
 csv_file_list = [
     f"{DATA_PATH}/AAPL.csv",
@@ -76,6 +71,8 @@ print(f"Using device: {device}")
 
 #%%
 # Decide between normal training or grid search
+EPOCHS_FINAL = 300  # We will train for 300 epochs in both modes
+
 if MODE == 'grid':
     print("Running Grid Search Hyperparameter Tuning on MLSTMFCN...")
     best_params, best_rmse = perform_grid_search(input_tensor, target_tensor, device=device)
@@ -86,8 +83,8 @@ if MODE == 'grid':
     # Make sure the order matches your param_grid in grid_search.py.
     learning_rate, conv_filters, kernel_sizes, lstm_hidden_sizes = best_params
 
-    # Re-train a final model with the best hyperparameters.
-    print("\nRe-training final MLSTMFCN model with the best hyperparameters...")
+    # Re-train a final model with the best hyperparameters for EPOCHS_FINAL
+    print(f"\nRe-training final MLSTMFCN model with the best hyperparameters for {EPOCHS_FINAL} epochs...")
     final_model = MLSTMFCN(
         input_size=input_tensor.shape[2],
         conv_filters=conv_filters,
@@ -107,19 +104,18 @@ if MODE == 'grid':
         training_data=input_tensor,
         training_labels=target_tensor
     )
-    final_trainer.run_training_loop(epochs=50)  # Adjust the number of epochs as needed
+    final_trainer.run_training_loop(epochs=EPOCHS_FINAL)
     final_model.eval()
 
 else:
     # NORMAL TRAINING
-    print("Running Normal Training Pipeline with fixed hyperparameters...")
+    print(f"Running Normal Training Pipeline for {EPOCHS_FINAL} epochs using fixed hyperparameters...")
 
     # Default hyperparameters
     conv_filters = [128, 256, 128]
     kernel_sizes = [90, 60, 30, 20, 8, 5, 3]
     lstm_hidden_sizes = [128, 128]
     learning_rate = 0.001
-    epochs = 300
 
     final_model = MLSTMFCN(
         input_size=input_tensor.shape[2],
@@ -140,7 +136,7 @@ else:
         training_labels=target_tensor
     )
 
-    trainer.run_training_loop(epochs=epochs)
+    trainer.run_training_loop(epochs=EPOCHS_FINAL)
     final_model.eval()
 
 #%%
@@ -153,12 +149,7 @@ prediction = final_model(test_tensor).to('cpu').detach().numpy()
 
 # **Important**: If the target dimension includes multiple columns (e.g., 'Close' and 'Volume'),
 # we must select only the "Close" portion of the target for plotting.
-
-# If your target is shape (N, 10), it's already just the "Close" column.
-# If your target is shape (N, 10, 2), you need to pick [:,:,0] to get just the "Close".
-# We'll do a safeguard here:
 if test_target.ndim == 3 and test_target.shape[-1] > 1:
-    # Keep only the first column (Close)
     test_target = test_target[..., 0]
 
 # Inverse scaling for plotting
@@ -201,7 +192,6 @@ close_price_series_test_list = testing_set_df['Close'].tolist()
 from datetime import datetime, timedelta
 testing_start_date = testing_dates_list[0]
 
-# If test_target is shape (N,10,2), we've reduced it to shape (N,10) above
 for i in range(test_tensor_inv.shape[0] - 100):
     plt.figure(figsize=(16, 9))
     plt.gcf().autofmt_xdate()  # Auto-rotate date labels
