@@ -51,7 +51,7 @@ csv_file_list = [
 csv_data_loader = CsvLoader(csv_file_list)
 data_aapl = csv_data_loader.get_data(company_name='AAPL', start_date='2020-01-01', end_date='2023-05-31')
 
-# Process data
+# Process data using PytorchDataProcessor
 data_processor = PytorchDataProcessor(
     input_data=data_aapl,
     extract_column=['Close', 'Volume'],  # multiple columns
@@ -71,7 +71,7 @@ print(f"Using device: {device}")
 
 #%%
 # Decide between normal training or grid search
-EPOCHS_FINAL = 300  # We will train for 300 epochs in both modes
+EPOCHS_FINAL = 300  # Final training will run for 300 epochs
 
 if MODE == 'grid':
     print("Running Grid Search Hyperparameter Tuning on MLSTMFCN...")
@@ -79,18 +79,17 @@ if MODE == 'grid':
     print(f"\nBest Parameters Found by Grid Search: {best_params}")
     print(f"Best RMSE on Validation Set: {best_rmse:.4f}")
 
-    # Unpack the best hyperparameters.
-    # Make sure the order matches your param_grid in grid_search.py.
+    # Unpack the best hyperparameters (order must match param_grid in grid_search.py)
     learning_rate, conv_filters, kernel_sizes, lstm_hidden_sizes = best_params
 
-    # Re-train a final model with the best hyperparameters for EPOCHS_FINAL
+    # Re-train a final model with the best hyperparameters for EPOCHS_FINAL epochs
     print(f"\nRe-training final MLSTMFCN model with the best hyperparameters for {EPOCHS_FINAL} epochs...")
     final_model = MLSTMFCN(
         input_size=input_tensor.shape[2],
         conv_filters=conv_filters,
         kernel_sizes=kernel_sizes,
         lstm_hidden_sizes=lstm_hidden_sizes,
-        output_size=target_tensor.shape[1]  # If your target has shape (N, 10)
+        output_size=target_tensor.shape[1]  # e.g., predicting a 10-day output if shape is (N, 10)
     ).to(device)
 
     criterion = nn.MSELoss()
@@ -108,10 +107,9 @@ if MODE == 'grid':
     final_model.eval()
 
 else:
-    # NORMAL TRAINING
+    # NORMAL TRAINING using fixed hyperparameters
     print(f"Running Normal Training Pipeline for {EPOCHS_FINAL} epochs using fixed hyperparameters...")
 
-    # Default hyperparameters
     conv_filters = [128, 256, 128]
     kernel_sizes = [90, 60, 30, 20, 8, 5, 3]
     lstm_hidden_sizes = [128, 128]
@@ -148,13 +146,13 @@ test_tensor = test_tensor.to(device)
 prediction = final_model(test_tensor).to('cpu').detach().numpy()
 
 # **Important**: If the target dimension includes multiple columns (e.g., 'Close' and 'Volume'),
-# we must select only the "Close" portion of the target for plotting.
+# select only the "Close" column for plotting.
 if test_target.ndim == 3 and test_target.shape[-1] > 1:
     test_target = test_target[..., 0]
 
 # Inverse scaling for plotting
 test_tensor_inv = data_processor.inverse_testing_scaler(
-    data=test_tensor.to('cpu')[:, :, 0],  # Already picking the [close] dimension
+    data=test_tensor.to('cpu')[:, :, 0],  # Already picking the "Close" dimension
     scaler_by_column_name='Close'
 )
 prediction_output = data_processor.inverse_testing_scaler(
@@ -207,8 +205,8 @@ for i in range(test_tensor_inv.shape[0] - 100):
     prediction_day = historical_x_list[-1]
 
     historical_data = test_tensor_inv[i, :].tolist()      # shape (90,) of floats
-    future_data_target = test_target_inv[i, :].tolist()   # shape (10,) of floats
-    future_prediction = prediction_output[i, :].tolist()  # shape (10,) of floats
+    future_data_target = test_target_inv[i, :].tolist()      # shape (10,) of floats
+    future_prediction = prediction_output[i, :].tolist()     # shape (10,) of floats
 
     # Plot historical data
     plt.plot(historical_x_list, historical_data, label='Historical Data', color='blue')
