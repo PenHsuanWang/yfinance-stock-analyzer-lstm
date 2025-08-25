@@ -26,14 +26,14 @@ from src.research.grid_search import perform_grid_search
 #%%
 # MODE CONFIGURATION
 # Set MODE to 'train' for normal training or 'grid' for hyperparameter tuning via grid search.
-MODE = 'grid'  # "train" or "grid"
+MODE = 'train'  # "train" or "grid"
 
 #%%
 # Load environment variables from .env file
 load_dotenv()
 
 # Basic settings
-companies_list = ['AAPL', 'GOOG', 'MSFT', 'AMZN']
+companies_list = ['AAPL', 'GOOG', 'MSFT', 'AMZN', 'TSM', 'AMAT']
 DATA_PATH = os.getenv("DATA_PATH")
 if DATA_PATH is None:
     raise ValueError("DATA_PATH is not defined in your .env file!")
@@ -49,13 +49,13 @@ csv_file_list = [
     f"{DATA_PATH}/AMZN.csv"
 ]
 csv_data_loader = CsvLoader(csv_file_list)
-data_aapl = csv_data_loader.get_data(company_name='AAPL', start_date='2020-01-01', end_date='2023-05-31')
+data_aapl = csv_data_loader.get_data(company_name='AAPL', start_date='2023-01-01', end_date='2025-08-22')
 
 # Process data using PytorchDataProcessor
 data_processor = PytorchDataProcessor(
     input_data=data_aapl,
     extract_column=['Close', 'Volume'],  # multiple columns
-    training_data_ratio=0.8,
+    training_data_ratio=0.7,
     training_window_size=TRAINING_WINDOW_SIZE,
     target_window_size=TARGET_WINDOW_SIZE
 )
@@ -66,7 +66,7 @@ print("Input tensor shape:", input_tensor.shape)
 print("Target tensor shape:", target_tensor.shape)
 
 # Determine device (default to 'mps' as in original code)
-device = torch.device('mps')
+device = torch.device('cpu')
 print(f"Using device: {device}")
 
 #%%
