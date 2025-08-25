@@ -14,10 +14,10 @@ def download_data():
 
 
 def main():
-    data = pd.read_csv('./data/raw_data/AAPL.csv')
+    data = pd.read_csv('./data/AAPL.csv')
     recognizer = PatternRecognizer(data)
     labeled_data = recognizer.recognize_patterns()
-    labeled_data.to_csv('./data/analyzed_data/patterned/labeled_AAPL.csv', index=False)
+    labeled_data.to_csv('./data/patterned/labeled_AAPL.csv', index=False)
     print(labeled_data[['Pattern']].dropna())
 
 

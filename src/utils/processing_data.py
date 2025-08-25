@@ -58,6 +58,46 @@ class PytorchDataProcessor(BaseDataProcessor):
         # For backward compatibility; some older logic might rely on these
         self._scaler_by_column = {}
 
+    # ----- NEW: minimal cleaning step -----
+    def _clean_input(self) -> None:
+        """
+        Drop rows that have empty/invalid values in the selected feature columns.
+        - Coerce selected columns to numeric (invalid -> NaN)
+        - Replace +/-inf with NaN
+        - Drop rows where ANY selected feature is NaN
+        - Sort by Date if present; reset index
+        """
+        if self._extract_column is None:
+            raise ValueError("extract_column must be provided.")
+
+        df = self._input_df.copy()
+
+        # Parse Date if present (kept optional)
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+        # Coerce selected columns to numeric, invalid -> NaN
+        for col in self._extract_column:
+            if col not in df.columns:
+                raise ValueError(f"Column '{col}' not found in input data.")
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Replace +/-inf with NaN, then drop rows where any selected feature is NaN
+        df = df.replace([np.inf, -np.inf], np.nan)
+        before = len(df)
+        mask = df[self._extract_column].notna().all(axis=1)
+        df = df.loc[mask].copy()
+        dropped = before - len(df)
+        if dropped > 0:
+            print(f"[DataCleaner] Dropped {dropped} rows with NaN/Inf in {self._extract_column}")
+
+        # Sort by Date if available (kept optional)
+        if 'Date' in df.columns:
+            df = df.sort_values('Date')
+
+        self._input_df = df.reset_index(drop=True)
+    # ----- END NEW -----
+
     def _extract_training_data_and_scale(self) -> None:
         """
         Original method to extract and individually scale columns.
@@ -127,9 +167,21 @@ class PytorchDataProcessor(BaseDataProcessor):
         x_train, y_train = np.array(x_train), np.array(y_train)
         x_test, y_test = np.array(x_test), np.array(y_test)
 
-        # Flatten final dimension of y if needed
-        y_train = np.reshape(y_train, (y_train.shape[0], y_train.shape[1]))
-        y_test = np.reshape(y_test, (y_test.shape[0], y_test.shape[1]))
+        # If no windows were produced, fail fast with a clear message (prevents cryptic IndexError)
+        if y_train.size == 0 or y_test.size == 0:
+            need = self._training_window_size + self._target_window_size
+            raise ValueError(
+                "No sliding windows were created. "
+                f"Each split must have at least {need} rows "
+                "(training_window_size + target_window_size). "
+                "Consider adjusting window sizes, split ratio, or date range."
+            )
+
+        # Flatten final dimension of y if needed (safe for horizon==1 or  >1)
+        if y_train.ndim == 1:
+            y_train = y_train.reshape(y_train.shape[0], 1)
+        if y_test.ndim == 1:
+            y_test = y_test.reshape(y_test.shape[0], 1)
 
         # Convert to PyTorch tensors
         self._training_tensor = torch.from_numpy(x_train).float()
@@ -141,11 +193,13 @@ class PytorchDataProcessor(BaseDataProcessor):
     def process_data(self) -> None:
         """
         The main pipeline remains the same but now we:
+          0) Clean raw input rows with empty values in selected features (NEW)
           1) Extract and scale columns individually (old approach)
           2) Split train/test with no partial overlap
           3) Unified scaling with _scaling_array() (train + test)
           4) Create sliding windows
         """
+        self._clean_input()  # <-- NEW minimal addition
         self._extract_training_data_and_scale()
         self._splitting()
         self._scaling_array()   # NEW: unify scaling after splitting
