@@ -1,0 +1,23 @@
+data:
+  ticker: "AAPL"
+  start_date: "2012-01-01"
+  end_date: null
+  filepath: "data/AAPL_historical.csv"
+  sequence_length: 60
+  train_split: 0.95
+
+model:
+  lstm_units: [128, 64]
+  dense_units: [25, 1]
+  dropout_rate: 0.0
+  optimizer: "adam"
+  loss: "mean_squared_error"
+  save_path: "outputs/lstm_model.pth"
+
+training:
+  batch_size: 1
+  epochs: 3
+  learning_rate: 0.001
+
+output:
+  plot_dir: "outputs"
